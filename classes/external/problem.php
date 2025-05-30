@@ -6,7 +6,7 @@
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Moodle is distributed in the hope that Moodle will be useful,
+// Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
@@ -82,7 +82,7 @@ class problem extends external_api {
         // Recupera o registro completo recém-salvo.
         $problem = $DB->get_record('modreportproblem', ['id' => $problemid]);
 
-        // Envia o e-mail para suporteti@lingopass.com.br
+        // Envia o e-mail para suporteti@lingopass.com.br com os links.
         self::send_report_email($problem);
 
         return ['status' => get_string('reportsuccess', 'local_modreportproblem')];
@@ -157,6 +157,26 @@ class problem extends external_api {
         $user = $DB->get_record('user', ['id' => $problem->userid], '*', MUST_EXIST);
         $course = $DB->get_record('course', ['id' => $problem->courseid], '*', MUST_EXIST);
 
+        // Link for the course.
+        $courseurl = (new \moodle_url('/course/view.php', ['id' => $course->id]))->out(false);
+
+        // Find course module and instance name.
+        $cm = $DB->get_record('course_modules', ['id' => $problem->cmid]);
+        $modname = '';
+        $modurl = '';
+
+        if ($cm) {
+            // Get activity/module name (for ex: "Quiz 1", "Lição sobre PHP", etc)
+            $modinstance = $DB->get_record($problem->module, ['id' => $cm->instance]);
+            if ($modinstance && property_exists($modinstance, 'name')) {
+                $modname = $modinstance->name;
+            } else {
+                $modname = '(atividade não encontrada)';
+            }
+            // URL to the activity.
+            $modurl = (new \moodle_url('/mod/' . $problem->module . '/view.php', ['id' => $cm->id]))->out(false);
+        }
+
         $supportemail = 'suporteti@lingopass.com.br';
 
         $subject = "Novo reporte de problema no Moodle (Curso: {$course->fullname})";
@@ -164,8 +184,9 @@ class problem extends external_api {
             <p>Um novo problema foi reportado no Moodle.</p>
             <ul>
                 <li><b>Usuário:</b> {$user->firstname} {$user->lastname} ({$user->email})</li>
-                <li><b>Curso:</b> {$course->fullname}</li>
-                <li><b>Módulo:</b> {$problem->module}</li>
+                <li><b>Curso:</b> <a href=\"{$courseurl}\">{$course->fullname}</a></li>
+                <li><b>Módulo (tipo):</b> {$problem->module}</li>
+                <li><b>Nome da Atividade:</b> <a href=\"{$modurl}\">{$modname}</a></li>
                 <li><b>Tipo:</b> {$problem->type}</li>
                 <li><b>Detalhes:</b> {$problem->details}</li>
                 <li><b>Data/Hora:</b> " . userdate($problem->timecreated) . "</li>
@@ -175,8 +196,9 @@ class problem extends external_api {
         $messagetext = "Um novo problema foi reportado no Moodle.
 
 Usuário: {$user->firstname} {$user->lastname} ({$user->email})
-Curso: {$course->fullname}
-Módulo: {$problem->module}
+Curso: {$course->fullname} ({$courseurl})
+Módulo (tipo): {$problem->module}
+Nome da Atividade: {$modname} ({$modurl})
 Tipo: {$problem->type}
 Detalhes: {$problem->details}
 Data/Hora: " . userdate($problem->timecreated);
