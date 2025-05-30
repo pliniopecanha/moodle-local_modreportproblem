@@ -6,7 +6,7 @@
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Moodle is distributed in the hope that it will be useful,
+// Moodle is distributed in the hope that Moodle will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
@@ -44,7 +44,6 @@ class problem extends external_api {
         ]);
     }
 
-
     public static function create($contextid, $jsonformdata) {
         global $DB, $USER;
 
@@ -77,7 +76,14 @@ class problem extends external_api {
         $recorddata->details = $validateddata->details;
         $recorddata->timecreated = time();
 
-        $DB->insert_record('modreportproblem', $recorddata);
+        // Salva o reporte e obtém o ID.
+        $problemid = $DB->insert_record('modreportproblem', $recorddata);
+
+        // Recupera o registro completo recém-salvo.
+        $problem = $DB->get_record('modreportproblem', ['id' => $problemid]);
+
+        // Envia o e-mail para suporteti@lingopass.com.br
+        self::send_report_email($problem);
 
         return ['status' => get_string('reportsuccess', 'local_modreportproblem')];
     }
@@ -136,5 +142,57 @@ class problem extends external_api {
         return new external_single_structure([
             'status' => new external_value(PARAM_TEXT, 'The transaction status'),
         ]);
+    }
+
+    /**
+     * Sends a notification email to support when a new problem is reported.
+     *
+     * @param \stdClass $problem The problem record
+     * @return void
+     */
+    private static function send_report_email($problem) {
+        global $DB, $USER, $CFG;
+
+        // Get user details.
+        $user = $DB->get_record('user', ['id' => $problem->userid], '*', MUST_EXIST);
+        $course = $DB->get_record('course', ['id' => $problem->courseid], '*', MUST_EXIST);
+
+        $supportemail = 'suporteti@lingopass.com.br';
+
+        $subject = "Novo reporte de problema no Moodle (Curso: {$course->fullname})";
+        $messagehtml = "
+            <p>Um novo problema foi reportado no Moodle.</p>
+            <ul>
+                <li><b>Usuário:</b> {$user->firstname} {$user->lastname} ({$user->email})</li>
+                <li><b>Curso:</b> {$course->fullname}</li>
+                <li><b>Módulo:</b> {$problem->module}</li>
+                <li><b>Tipo:</b> {$problem->type}</li>
+                <li><b>Detalhes:</b> {$problem->details}</li>
+                <li><b>Data/Hora:</b> " . userdate($problem->timecreated) . "</li>
+            </ul>
+        ";
+
+        $messagetext = "Um novo problema foi reportado no Moodle.
+
+Usuário: {$user->firstname} {$user->lastname} ({$user->email})
+Curso: {$course->fullname}
+Módulo: {$problem->module}
+Tipo: {$problem->type}
+Detalhes: {$problem->details}
+Data/Hora: " . userdate($problem->timecreated);
+
+        // Usa o usuário logado como remetente.
+        email_to_user(
+            (object)[
+                'id' => -99,
+                'email' => $supportemail,
+                'firstname' => 'Suporte',
+                'lastname' => 'TI'
+            ],
+            $user,
+            $subject,
+            $messagetext,
+            $messagehtml
+        );
     }
 }
