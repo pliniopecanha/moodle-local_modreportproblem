@@ -44,7 +44,7 @@ if ($hassiteconfig) {
             'local_modreportproblem/recipients',
             get_string('recipients', 'local_modreportproblem'),
             get_string('recipients_desc', 'local_modreportproblem'),
-            'suporteti@lingopass.com.br'
+            ''
         )
     );
 
