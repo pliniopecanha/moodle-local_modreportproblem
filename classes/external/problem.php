@@ -82,7 +82,7 @@ class problem extends external_api {
         // Recupera o registro completo recém-salvo.
         $problem = $DB->get_record('modreportproblem', ['id' => $problemid]);
 
-        // Envia o e-mail para suporteti@lingopass.com.br com os links.
+        // Envia o e-mail para os destinatários configurados.
         self::send_report_email($problem);
 
         return ['status' => get_string('reportsuccess', 'local_modreportproblem')];
@@ -146,6 +146,7 @@ class problem extends external_api {
 
     /**
      * Sends a notification email to support when a new problem is reported.
+     * Supports multiple recipients defined in plugin config (comma/semicolon/space separated).
      *
      * @param \stdClass $problem The problem record
      * @return void
@@ -177,7 +178,13 @@ class problem extends external_api {
             $modurl = (new \moodle_url('/mod/' . $problem->module . '/view.php', ['id' => $cm->id]))->out(false);
         }
 
-        $supportemail = 'suporteti@lingopass.com.br';
+        // Busca os destinatários configurados na administração do plugin.
+        $recipientscfg = get_config('local_modreportproblem', 'recipients');
+        if (!$recipientscfg) {
+            // Valor padrão (caso não esteja configurado ainda).
+            $recipientscfg = 'suporteti@lingopass.com.br';
+        }
+        $recipients = preg_split('/[\s,;]+/', $recipientscfg, -1, PREG_SPLIT_NO_EMPTY);
 
         $subject = "Novo reporte de problema no Moodle (Curso: {$course->fullname})";
         $messagehtml = "
@@ -203,18 +210,20 @@ Tipo: {$problem->type}
 Detalhes: {$problem->details}
 Data/Hora: " . userdate($problem->timecreated);
 
-        // Usa o usuário logado como remetente.
-        email_to_user(
-            (object)[
-                'id' => -99,
-                'email' => $supportemail,
-                'firstname' => 'Suporte',
-                'lastname' => 'TI'
-            ],
-            $user,
-            $subject,
-            $messagetext,
-            $messagehtml
-        );
+        // Envia para todos os destinatários.
+        foreach ($recipients as $supportemail) {
+            email_to_user(
+                (object)[
+                    'id' => -99,
+                    'email' => $supportemail,
+                    'firstname' => 'Suporte',
+                    'lastname' => 'TI'
+                ],
+                $user,
+                $subject,
+                $messagetext,
+                $messagehtml
+            );
+        }
     }
 }
