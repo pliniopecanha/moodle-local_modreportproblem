@@ -38,5 +38,15 @@ if ($hassiteconfig) {
         )
     );
 
+    // Novo campo: destinatários dos e-mails (suporta múltiplos, separados por vírgula, espaço ou ponto e vírgula)
+    $settings->add(
+        new admin_setting_configtext(
+            'local_modreportproblem/recipients',
+            get_string('recipients', 'local_modreportproblem'),
+            get_string('recipients_desc', 'local_modreportproblem'),
+            'suporteti@lingopass.com.br'
+        )
+    );
+
     $ADMIN->add('localplugins', $settings);
 }
